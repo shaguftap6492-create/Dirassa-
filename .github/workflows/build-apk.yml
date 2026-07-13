@@ -19,21 +19,22 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
-        with:
-          gradle-version: '8.6'
-
-      - name: Generate Gradle Wrapper
-        run: gradle wrapper --gradle-version 8.6
-        working-directory: DIRASSA-Fee-Record
+      - name: Download Gradle Wrapper JAR
+        run: |
+          mkdir -p DIRASSA-Fee-Record/gradle/wrapper
+          curl -L \
+            "https://github.com/gradle/gradle/raw/v8.6.0/gradle/wrapper/gradle-wrapper.jar" \
+            -o DIRASSA-Fee-Record/gradle/wrapper/gradle-wrapper.jar
+          echo "JAR downloaded: $(ls -lh DIRASSA-Fee-Record/gradle/wrapper/)"
 
       - name: Make gradlew executable
         run: chmod +x DIRASSA-Fee-Record/gradlew
 
       - name: Build Debug APK
-        run: ./gradlew assembleDebug --no-daemon
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
         working-directory: DIRASSA-Fee-Record
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx2g"
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
