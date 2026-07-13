@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Base application theme (Material Design 3, Light) -->
+    <style name="Theme.DIRASSAFeeRecord" parent="Theme.Material3.Light.NoActionBar">
+        <item name="colorPrimary">@color/primary</item>
+        <item name="colorPrimaryVariant">@color/primary_variant</item>
+        <item name="colorOnPrimary">@color/on_primary</item>
+        <item name="colorSecondary">@color/secondary</item>
+        <item name="colorOnSecondary">@color/on_secondary</item>
+        <item name="colorSurface">@color/surface</item>
+        <item name="colorOnSurface">@color/on_surface</item>
+        <item name="android:colorBackground">@color/background</item>
+        <item name="android:statusBarColor">@color/primary</item>
+        <item name="android:navigationBarColor">@color/background</item>
+        <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:fontFamily">sans-serif</item>
+    </style>
+
+    <!-- Splash Screen theme -->
+    <style name="Theme.DIRASSAFeeRecord.Splash" parent="Theme.DIRASSAFeeRecord">
+        <item name="android:statusBarColor">@color/primary</item>
+        <item name="android:navigationBarColor">@color/primary</item>
+        <item name="android:windowLightNavigationBar">false</item>
+    </style>
+
+    <!-- Toolbar style -->
+    <style name="Widget.DIRASSAFeeRecord.Toolbar" parent="Widget.Material3.Toolbar">
+        <item name="android:background">@color/primary</item>
+        <item name="titleTextColor">@color/on_primary</item>
+        <item name="navigationIconTint">@color/on_primary</item>
+    </style>
+
+    <!-- Dashboard card style -->
+    <style name="Widget.DIRASSAFeeRecord.DashCard" parent="Widget.Material3.CardView.Elevated">
+        <item name="cardElevation">4dp</item>
+        <item name="cardCornerRadius">12dp</item>
+    </style>
+
+    <!-- Home button card style -->
+    <style name="Widget.DIRASSAFeeRecord.HomeCard" parent="Widget.Material3.CardView.Elevated">
+        <item name="cardElevation">6dp</item>
+        <item name="cardCornerRadius">16dp</item>
+    </style>
+
+    <!-- Input field style -->
+    <style name="Widget.DIRASSAFeeRecord.TextInputLayout" parent="Widget.Material3.TextInputLayout.OutlinedBox">
+        <item name="boxStrokeColor">@color/primary</item>
+        <item name="hintTextColor">@color/primary</item>
+    </style>
+
+</resources>

@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "2J9YgTA23WUx7Q0BZ_ezO"
+uri = "file://DIRASSA-Fee-Record.zip"
+type = "unspecified"
+title = "DIRASSA Fee Record — Android Project"
