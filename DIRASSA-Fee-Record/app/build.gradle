@@ -74,9 +74,6 @@ dependencies {
     // PDF generation (iText 5 - Android compatible)
     implementation 'com.itextpdf:itextg:5.5.10'
 
-    // Apache POI for Excel export (via Kotlin-friendly fork)
-    implementation 'org.apache.poi:poi:5.2.3'
-
     // Date/Time utilities
     implementation 'androidx.work:work-runtime-ktx:2.9.0'
 
