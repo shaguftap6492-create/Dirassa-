@@ -2,232 +2,237 @@ package com.dirassa.feerecord.util
 
 import android.content.Context
 import android.content.Intent
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.pdf.PdfDocument
+import android.net.Uri
+import android.widget.Toast
 import androidx.core.content.FileProvider
+import com.dirassa.feerecord.data.entity.FeeRecord
 import com.dirassa.feerecord.data.entity.Student
-import com.dirassa.feerecord.data.entity.StudentWithFee
-import com.itextpdf.text.*
-import com.itextpdf.text.pdf.*
 import java.io.File
 import java.io.FileOutputStream
-import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.*
 
 /**
- * Helper class for generating PDF reports using iText.
+ * Generates PDF files using Android's built-in PdfDocument API.
+ * No external library required.
  */
 object PdfHelper {
 
-    private val currencyFormat = NumberFormat.getCurrencyInstance(Locale("hi", "IN"))
-    private val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+    private const val PAGE_WIDTH  = 595   // A4 width  in points (72 dpi)
+    private const val PAGE_HEIGHT = 842   // A4 height in points
 
-    // iText fonts
-    private val FONT_TITLE = Font(Font.FontFamily.HELVETICA, 18f, Font.BOLD, BaseColor(21, 101, 192))
-    private val FONT_SUBTITLE = Font(Font.FontFamily.HELVETICA, 12f, Font.BOLD, BaseColor.DARK_GRAY)
-    private val FONT_HEADER = Font(Font.FontFamily.HELVETICA, 10f, Font.BOLD, BaseColor.WHITE)
-    private val FONT_BODY = Font(Font.FontFamily.HELVETICA, 9f, Font.NORMAL, BaseColor.BLACK)
-    private val FONT_PAID = Font(Font.FontFamily.HELVETICA, 9f, Font.BOLD, BaseColor(46, 125, 50))
-    private val FONT_PENDING = Font(Font.FontFamily.HELVETICA, 9f, Font.BOLD, BaseColor(198, 40, 40))
+    private const val MARGIN_LEFT  = 40f
+    private const val MARGIN_RIGHT = 555f
+    private const val LINE_HEIGHT  = 22f
+
+    // ── Paint helpers ────────────────────────────────────────────────────────
+
+    private fun titlePaint() = Paint().apply {
+        color     = Color.parseColor("#1565C0")
+        textSize  = 22f
+        isFakeBoldText = true
+        isAntiAlias    = true
+    }
+
+    private fun headingPaint() = Paint().apply {
+        color     = Color.parseColor("#1565C0")
+        textSize  = 14f
+        isFakeBoldText = true
+        isAntiAlias    = true
+    }
+
+    private fun labelPaint() = Paint().apply {
+        color     = Color.parseColor("#555555")
+        textSize  = 11f
+        isAntiAlias = true
+    }
+
+    private fun valuePaint() = Paint().apply {
+        color     = Color.BLACK
+        textSize  = 11f
+        isAntiAlias = true
+    }
+
+    private fun linePaint(color: Int = Color.parseColor("#DDDDDD")) =
+        Paint().apply { this.color = color; strokeWidth = 1f }
+
+    // ── Public API ───────────────────────────────────────────────────────────
 
     /**
-     * Generate a monthly report PDF file.
-     * @return File path of generated PDF
+     * Monthly report PDF — lists all fee records for a month/year.
      */
-    fun generateMonthlyReport(
+    fun createMonthlyReportPdf(
         context: Context,
         month: String,
         year: Int,
-        records: List<StudentWithFee>
-    ): File {
-        val fileName = "DIRASSA_Report_${month}_${year}_${System.currentTimeMillis()}.pdf"
-        val file = File(context.filesDir, fileName)
+        students: List<Student>,
+        records: List<FeeRecord>
+    ): File? {
+        return try {
+            val doc  = PdfDocument()
+            val page = doc.startPage(PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, 1).create())
+            val c    = page.canvas
+            var y    = 50f
 
-        val document = Document(PageSize.A4, 36f, 36f, 36f, 36f)
-        PdfWriter.getInstance(document, FileOutputStream(file))
-        document.open()
+            // Title
+            c.drawText("DIRASSA CLASSES", MARGIN_LEFT, y, titlePaint()); y += 30f
+            c.drawText("Monthly Fee Report — $month $year", MARGIN_LEFT, y, headingPaint()); y += 10f
+            c.drawLine(MARGIN_LEFT, y, MARGIN_RIGHT, y, linePaint(Color.parseColor("#1565C0"))); y += 20f
 
-        // ─── Title block ───
-        val titlePara = Paragraph("DIRASSA CLASSES", FONT_TITLE)
-        titlePara.alignment = Element.ALIGN_CENTER
-        document.add(titlePara)
+            // Table header
+            val hp = headingPaint().apply { textSize = 10f; color = Color.WHITE }
+            val headerPaint = Paint().apply { color = Color.parseColor("#1565C0") }
+            c.drawRect(MARGIN_LEFT, y, MARGIN_RIGHT, y + 18f, headerPaint)
+            c.drawText("Student ID", MARGIN_LEFT + 4,  y + 13f, hp)
+            c.drawText("Name",       MARGIN_LEFT + 70, y + 13f, hp)
+            c.drawText("Month",      MARGIN_LEFT + 220,y + 13f, hp)
+            c.drawText("Paid (₹)",   MARGIN_LEFT + 300,y + 13f, hp)
+            c.drawText("Status",     MARGIN_LEFT + 380,y + 13f, hp)
+            y += 22f
 
-        val subtitlePara = Paragraph("Fee Report — $month $year", FONT_SUBTITLE)
-        subtitlePara.alignment = Element.ALIGN_CENTER
-        subtitlePara.spacingAfter = 4f
-        document.add(subtitlePara)
+            // Rows
+            var totalPaid = 0.0
+            records.forEachIndexed { idx, r ->
+                if (y > PAGE_HEIGHT - 60) return@forEachIndexed  // skip if out of page
+                val student  = students.find { it.studentId == r.studentId }
+                val rowPaint = Paint().apply {
+                    color = if (idx % 2 == 0) Color.parseColor("#F5F5F5") else Color.WHITE
+                }
+                c.drawRect(MARGIN_LEFT, y, MARGIN_RIGHT, y + LINE_HEIGHT, rowPaint)
+                val vp = valuePaint().apply { textSize = 10f }
+                c.drawText(student?.displayId ?: "-",   MARGIN_LEFT + 4,   y + 15f, vp)
+                c.drawText((student?.studentName ?: "-").take(22),
+                                                         MARGIN_LEFT + 70,  y + 15f, vp)
+                c.drawText(r.month,                      MARGIN_LEFT + 220, y + 15f, vp)
+                c.drawText("%.0f".format(r.amountPaid),  MARGIN_LEFT + 300, y + 15f, vp)
+                val statusPaint = valuePaint().apply {
+                    textSize = 10f
+                    color = if (r.status == "Paid") Color.parseColor("#2E7D32")
+                            else Color.parseColor("#C62828")
+                }
+                c.drawText(r.status, MARGIN_LEFT + 380, y + 15f, statusPaint)
+                totalPaid += r.amountPaid
+                y += LINE_HEIGHT
+            }
 
-        val datePara = Paragraph("Generated: ${dateFormat.format(Date())}", FONT_BODY)
-        datePara.alignment = Element.ALIGN_CENTER
-        datePara.spacingAfter = 16f
-        document.add(datePara)
+            // Summary
+            y += 10f
+            c.drawLine(MARGIN_LEFT, y, MARGIN_RIGHT, y, linePaint()); y += 15f
+            c.drawText("Total Records : ${records.size}", MARGIN_LEFT, y, headingPaint().apply { textSize = 11f }); y += LINE_HEIGHT
+            c.drawText("Total Collected : ₹${"%.0f".format(totalPaid)}", MARGIN_LEFT, y, headingPaint().apply { textSize = 11f }); y += LINE_HEIGHT
+            val paidCount    = records.count { it.status == "Paid" }
+            val pendingCount = records.count { it.status == "Pending" }
+            c.drawText("Paid: $paidCount   Pending: $pendingCount", MARGIN_LEFT, y,
+                labelPaint().apply { textSize = 10f })
 
-        // ─── Summary box ───
-        val totalFee = records.sumOf { it.monthlyFee }
-        val totalPaid = records.filter { it.isPaid }.sumOf { it.amountPaid }
-        val totalPending = records.filter { !it.isPaid }.sumOf { it.monthlyFee - it.amountPaid }
+            // Footer
+            val footerY = PAGE_HEIGHT - 30f
+            c.drawLine(MARGIN_LEFT, footerY - 5, MARGIN_RIGHT, footerY - 5, linePaint())
+            val generated = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date())
+            c.drawText("Generated: $generated", MARGIN_LEFT, footerY + 10f, labelPaint().apply { textSize = 9f })
 
-        val summaryTable = PdfPTable(4)
-        summaryTable.widthPercentage = 100f
-        summaryTable.spacingAfter = 16f
-        val summaryHeaders = listOf("Total Students", "Total Fee", "Received", "Pending")
-        val summaryValues = listOf(
-            records.size.toString(),
-            formatAmount(totalFee),
-            formatAmount(totalPaid),
-            formatAmount(totalPending)
-        )
-        val summaryColors = listOf(
-            BaseColor(21, 101, 192),
-            BaseColor(0, 131, 143),
-            BaseColor(46, 125, 50),
-            BaseColor(198, 40, 40)
-        )
-        for (i in summaryHeaders.indices) {
-            val cell = PdfPCell()
-            cell.backgroundColor = summaryColors[i]
-            cell.setPadding(8f)
-            cell.horizontalAlignment = Element.ALIGN_CENTER
-            val headerP = Paragraph(summaryHeaders[i], FONT_HEADER)
-            headerP.alignment = Element.ALIGN_CENTER
-            val valueP = Paragraph(summaryValues[i], Font(Font.FontFamily.HELVETICA, 12f, Font.BOLD, BaseColor.WHITE))
-            valueP.alignment = Element.ALIGN_CENTER
-            cell.addElement(headerP)
-            cell.addElement(valueP)
-            summaryTable.addCell(cell)
+            doc.finishPage(page)
+
+            val fileName = "Report_${month}_${year}_${System.currentTimeMillis()}.pdf"
+            val file = File(context.getExternalFilesDir(null), fileName)
+            FileOutputStream(file).use { doc.writeTo(it) }
+            doc.close()
+            file
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Toast.makeText(context, "PDF failed: ${e.message}", Toast.LENGTH_LONG).show()
+            null
         }
-        document.add(summaryTable)
-
-        // ─── Data table ───
-        val table = PdfPTable(6)
-        table.widthPercentage = 100f
-        table.setWidths(floatArrayOf(0.5f, 2.5f, 1f, 1f, 1f, 1f))
-
-        val headers = listOf("#", "Student Name", "Class", "Monthly Fee", "Paid", "Status")
-        for (h in headers) {
-            val cell = PdfPCell(Phrase(h, FONT_HEADER))
-            cell.backgroundColor = BaseColor(21, 101, 192)
-            cell.horizontalAlignment = Element.ALIGN_CENTER
-            cell.setPadding(6f)
-            table.addCell(cell)
-        }
-
-        records.forEachIndexed { index, rec ->
-            addCell(table, (index + 1).toString(), FONT_BODY, Element.ALIGN_CENTER)
-            addCell(table, rec.studentName, FONT_BODY)
-            addCell(table, rec.className, FONT_BODY, Element.ALIGN_CENTER)
-            addCell(table, formatAmount(rec.monthlyFee), FONT_BODY, Element.ALIGN_RIGHT)
-            addCell(table, formatAmount(rec.amountPaid), FONT_BODY, Element.ALIGN_RIGHT)
-            val statusFont = if (rec.isPaid) FONT_PAID else FONT_PENDING
-            addCell(table, rec.status, statusFont, Element.ALIGN_CENTER)
-        }
-        document.add(table)
-
-        // ─── Footer ───
-        val footer = Paragraph("\nDIRASSA CLASSES — Confidential Fee Record", FONT_BODY)
-        footer.alignment = Element.ALIGN_CENTER
-        document.add(footer)
-
-        document.close()
-        return file
     }
 
     /**
-     * Generate a receipt PDF for a single student's payment.
+     * Single payment receipt PDF for one student + one fee record.
      */
-    fun generateReceipt(
+    fun createReceiptPdf(
         context: Context,
         student: Student,
-        amountPaid: Double,
-        month: String,
-        year: Int,
-        paymentDate: String,
-        remarks: String
-    ): File {
-        val fileName = "Receipt_${student.displayId}_${month}_${year}.pdf"
-        val file = File(context.filesDir, fileName)
+        record: FeeRecord
+    ): File? {
+        return try {
+            val doc  = PdfDocument()
+            val page = doc.startPage(PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, 1).create())
+            val c    = page.canvas
+            var y    = 60f
 
-        val document = Document(PageSize.A5, 36f, 36f, 36f, 36f)
-        PdfWriter.getInstance(document, FileOutputStream(file))
-        document.open()
+            // Header
+            c.drawText("DIRASSA CLASSES", MARGIN_LEFT, y, titlePaint()); y += 30f
+            c.drawText("Payment Receipt", MARGIN_LEFT, y, headingPaint()); y += 8f
+            c.drawLine(MARGIN_LEFT, y, MARGIN_RIGHT, y, linePaint(Color.parseColor("#1565C0"))); y += 28f
 
-        // Title
-        val title = Paragraph("DIRASSA CLASSES", FONT_TITLE)
-        title.alignment = Element.ALIGN_CENTER
-        document.add(title)
+            // Receipt details
+            fun row(label: String, value: String) {
+                c.drawText(label, MARGIN_LEFT, y, labelPaint())
+                c.drawText(value, MARGIN_LEFT + 160, y, valuePaint())
+                y += LINE_HEIGHT
+            }
 
-        val receiptTitle = Paragraph("FEE RECEIPT", FONT_SUBTITLE)
-        receiptTitle.alignment = Element.ALIGN_CENTER
-        receiptTitle.spacingAfter = 12f
-        document.add(receiptTitle)
+            row("Receipt Date",  SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date()))
+            row("Student ID",    student.displayId)
+            row("Student Name",  student.studentName)
+            row("Father Name",   student.fatherName)
+            row("Class",         student.className)
+            row("Mobile",        student.mobile)
+            y += 10f
+            c.drawLine(MARGIN_LEFT, y, MARGIN_RIGHT, y, linePaint()); y += 20f
 
-        // Receipt details table
-        val detailsTable = PdfPTable(2)
-        detailsTable.widthPercentage = 100f
-        detailsTable.spacingAfter = 12f
+            row("Month / Year",  "${record.month} ${record.year}")
+            row("Amount Paid",   "₹ ${"%.0f".format(record.amountPaid)}")
+            row("Monthly Fee",   "₹ ${"%.0f".format(student.monthlyFee)}")
+            val balance = student.monthlyFee - record.amountPaid
+            row("Balance",       "₹ ${"%.0f".format(balance)}")
+            row("Status",        record.status)
+            if (record.paymentDate.isNotEmpty()) row("Payment Date", record.paymentDate)
+            if (record.remarks.isNotEmpty())     row("Remarks",      record.remarks)
 
-        addDetailRow(detailsTable, "Receipt No.", student.displayId + "-" + System.currentTimeMillis() % 1000)
-        addDetailRow(detailsTable, "Student Name", student.studentName)
-        addDetailRow(detailsTable, "Father's Name", student.fatherName)
-        addDetailRow(detailsTable, "Class", student.className)
-        addDetailRow(detailsTable, "Mobile", student.mobile)
-        addDetailRow(detailsTable, "Month", "$month $year")
-        addDetailRow(detailsTable, "Monthly Fee", formatAmount(student.monthlyFee))
-        addDetailRow(detailsTable, "Amount Paid", formatAmount(amountPaid))
-        addDetailRow(detailsTable, "Balance", formatAmount(student.monthlyFee - amountPaid))
-        addDetailRow(detailsTable, "Payment Date", paymentDate)
-        if (remarks.isNotBlank()) addDetailRow(detailsTable, "Remarks", remarks)
+            y += 20f
+            c.drawLine(MARGIN_LEFT, y, MARGIN_RIGHT, y, linePaint())
 
-        document.add(detailsTable)
+            // Footer
+            val footerY = PAGE_HEIGHT - 80f
+            c.drawText("Thank you!", MARGIN_LEFT, footerY, headingPaint())
+            c.drawText(
+                "Generated: ${SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date())}",
+                MARGIN_LEFT, footerY + 25f, labelPaint().apply { textSize = 9f }
+            )
+            c.drawText("DIRASSA CLASSES — Fee Management", MARGIN_LEFT, footerY + 40f,
+                labelPaint().apply { textSize = 9f; color = Color.parseColor("#888888") })
 
-        val statusText = if (amountPaid >= student.monthlyFee) "✓ PAID IN FULL" else "⚠ PARTIALLY PAID"
-        val statusColor = if (amountPaid >= student.monthlyFee) BaseColor(46, 125, 50) else BaseColor(198, 40, 40)
-        val statusPara = Paragraph(statusText, Font(Font.FontFamily.HELVETICA, 14f, Font.BOLD, statusColor))
-        statusPara.alignment = Element.ALIGN_CENTER
-        document.add(statusPara)
+            doc.finishPage(page)
 
-        val footer = Paragraph("\n\nThank you!\nDIRASSA CLASSES", FONT_BODY)
-        footer.alignment = Element.ALIGN_CENTER
-        document.add(footer)
-
-        document.close()
-        return file
+            val fileName = "Receipt_${student.displayId}_${record.month}_${record.year}.pdf"
+            val file = File(context.getExternalFilesDir(null), fileName)
+            FileOutputStream(file).use { doc.writeTo(it) }
+            doc.close()
+            file
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Toast.makeText(context, "Receipt failed: ${e.message}", Toast.LENGTH_LONG).show()
+            null
+        }
     }
 
-    /** Share a PDF file via Android share sheet */
+    /** Share any PDF file via Android share sheet. */
     fun sharePdf(context: Context, file: File) {
-        val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
+        val uri: Uri = FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            file
+        )
         val intent = Intent(Intent.ACTION_SEND).apply {
             type = "application/pdf"
             putExtra(Intent.EXTRA_STREAM, uri)
+            putExtra(Intent.EXTRA_SUBJECT, "DIRASSA Fee Report")
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        context.startActivity(Intent.createChooser(intent, "Share PDF"))
+        context.startActivity(Intent.createChooser(intent, "Share PDF via"))
     }
-
-    // ─── Internal helpers ───
-
-    private fun addCell(
-        table: PdfPTable,
-        text: String,
-        font: Font,
-        alignment: Int = Element.ALIGN_LEFT
-    ) {
-        val cell = PdfPCell(Phrase(text, font))
-        cell.horizontalAlignment = alignment
-        cell.setPadding(4f)
-        table.addCell(cell)
-    }
-
-    private fun addDetailRow(table: PdfPTable, label: String, value: String) {
-        val labelCell = PdfPCell(Phrase(label, FONT_SUBTITLE))
-        labelCell.setPadding(4f)
-        labelCell.backgroundColor = BaseColor(240, 244, 255)
-        table.addCell(labelCell)
-
-        val valueCell = PdfPCell(Phrase(value, FONT_BODY))
-        valueCell.setPadding(4f)
-        table.addCell(valueCell)
-    }
-
-    private fun formatAmount(amount: Double): String = "₹%.2f".format(amount)
 }
