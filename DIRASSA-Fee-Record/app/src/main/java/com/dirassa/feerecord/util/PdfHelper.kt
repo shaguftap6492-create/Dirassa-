@@ -11,6 +11,7 @@ import android.widget.Toast
 import androidx.core.content.FileProvider
 import com.dirassa.feerecord.data.entity.FeeRecord
 import com.dirassa.feerecord.data.entity.Student
+import com.dirassa.feerecord.data.entity.StudentWithFee
 import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
@@ -69,8 +70,7 @@ object PdfHelper {
         context: Context,
         month: String,
         year: Int,
-        students: List<Student>,
-        records: List<FeeRecord>
+        records: List<StudentWithFee>
     ): File? {
         return try {
             val doc  = PdfDocument()
@@ -97,16 +97,15 @@ object PdfHelper {
             // Rows
             var totalPaid = 0.0
             records.forEachIndexed { idx, r ->
-                if (y > PAGE_HEIGHT - 60) return@forEachIndexed  // skip if out of page
-                val student  = students.find { it.studentId == r.studentId }
+                if (y > PAGE_HEIGHT - 60) return@forEachIndexed
                 val rowPaint = Paint().apply {
                     color = if (idx % 2 == 0) Color.parseColor("#F5F5F5") else Color.WHITE
                 }
                 c.drawRect(MARGIN_LEFT, y, MARGIN_RIGHT, y + LINE_HEIGHT, rowPaint)
                 val vp = valuePaint().apply { textSize = 10f }
-                c.drawText(student?.displayId ?: "-",   MARGIN_LEFT + 4,   y + 15f, vp)
-                c.drawText((student?.studentName ?: "-").take(22),
-                                                         MARGIN_LEFT + 70,  y + 15f, vp)
+                val displayId = "STU%03d".format(r.studentId)
+                c.drawText(displayId,                    MARGIN_LEFT + 4,   y + 15f, vp)
+                c.drawText(r.studentName.take(22),       MARGIN_LEFT + 70,  y + 15f, vp)
                 c.drawText(r.month,                      MARGIN_LEFT + 220, y + 15f, vp)
                 c.drawText("%.0f".format(r.amountPaid),  MARGIN_LEFT + 300, y + 15f, vp)
                 val statusPaint = valuePaint().apply {

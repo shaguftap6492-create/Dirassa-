@@ -120,9 +120,9 @@ class SettingsActivity : AppCompatActivity() {
             try {
                 val students = app.studentRepository.getAllStudentsOnce()
                 val feeRecords = app.feeRecordRepository.getAllStudentsWithFeeOnce()
-                val file = ExcelHelper.generateExcelReport(this@SettingsActivity, students, feeRecords)
+                val file = ExcelHelper.createExportCsv(this@SettingsActivity, students, feeRecords)
                 binding.pbLoading.visibility = android.view.View.GONE
-                ExcelHelper.shareExcel(this@SettingsActivity, file)
+                if (file != null) ExcelHelper.shareCsv(this@SettingsActivity, file)
             } catch (e: Exception) {
                 binding.pbLoading.visibility = android.view.View.GONE
                 Toast.makeText(this@SettingsActivity, "Export failed: ${e.message}", Toast.LENGTH_LONG).show()
@@ -135,15 +135,12 @@ class SettingsActivity : AppCompatActivity() {
             binding.pbLoading.visibility = android.view.View.VISIBLE
             try {
                 val feeRecords = app.feeRecordRepository.getAllStudentsWithFeeOnce()
-                val file = PdfHelper.generateMonthlyReport(
-                    this@SettingsActivity,
-                    "All Months",
-                    0,
-                    feeRecords
+                val file = PdfHelper.createMonthlyReportPdf(
+                    this@SettingsActivity, "All Months", 0, feeRecords
                 )
                 binding.pbLoading.visibility = android.view.View.GONE
                 Toast.makeText(this@SettingsActivity, getString(R.string.pdf_generated), Toast.LENGTH_SHORT).show()
-                PdfHelper.sharePdf(this@SettingsActivity, file)
+                if (file != null) PdfHelper.sharePdf(this@SettingsActivity, file)
             } catch (e: Exception) {
                 binding.pbLoading.visibility = android.view.View.GONE
                 Toast.makeText(this@SettingsActivity, "PDF failed: ${e.message}", Toast.LENGTH_LONG).show()

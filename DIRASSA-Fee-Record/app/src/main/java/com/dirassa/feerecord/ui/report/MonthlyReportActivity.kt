@@ -171,11 +171,11 @@ class MonthlyReportActivity : AppCompatActivity() {
             try {
                 val month = binding.spinnerMonth.selectedItem?.toString() ?: return@launch
                 val year = binding.spinnerYear.selectedItem?.toString()?.toInt() ?: currentYear
-                val file = PdfHelper.generateMonthlyReport(
+                val file = PdfHelper.createMonthlyReportPdf(
                     this@MonthlyReportActivity, month, year, allRecords
                 )
                 Toast.makeText(this@MonthlyReportActivity, getString(R.string.pdf_generated), Toast.LENGTH_SHORT).show()
-                PdfHelper.sharePdf(this@MonthlyReportActivity, file)
+                if (file != null) PdfHelper.sharePdf(this@MonthlyReportActivity, file)
             } catch (e: Exception) {
                 Toast.makeText(this@MonthlyReportActivity, "Error generating PDF", Toast.LENGTH_SHORT).show()
             }

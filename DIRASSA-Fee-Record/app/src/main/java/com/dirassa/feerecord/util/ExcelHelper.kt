@@ -7,6 +7,7 @@ import android.widget.Toast
 import androidx.core.content.FileProvider
 import com.dirassa.feerecord.data.entity.FeeRecord
 import com.dirassa.feerecord.data.entity.Student
+import com.dirassa.feerecord.data.entity.StudentWithFee
 import java.io.File
 import java.io.FileWriter
 import java.text.SimpleDateFormat
@@ -28,7 +29,7 @@ object ExcelHelper {
     fun createExportCsv(
         context: Context,
         students: List<Student>,
-        feeRecords: List<FeeRecord>
+        feeRecords: List<StudentWithFee>
     ): File? {
         return try {
             val dateStr = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
@@ -56,20 +57,18 @@ object ExcelHelper {
 
                 // ── FEE RECORDS SHEET ────────────────────────────────────────
                 writer.write("FEE RECORDS\n")
-                writer.write("Record ID,Student ID,Month,Year,Amount Paid,Status,Payment Date,Remarks\n")
+                writer.write("Student ID,Name,Class,Month,Year,Amount Paid,Monthly Fee,Status\n")
                 for (r in feeRecords) {
-                    val studentDisplayId = students
-                        .find { it.studentId == r.studentId }
-                        ?.displayId ?: r.studentId.toString()
+                    val displayId = "STU%03d".format(r.studentId)
                     writer.write(
-                        "${r.recordId}," +
-                        "${escapeCsv(studentDisplayId)}," +
+                        "${escapeCsv(displayId)}," +
+                        "${escapeCsv(r.studentName)}," +
+                        "${escapeCsv(r.className)}," +
                         "${escapeCsv(r.month)}," +
                         "${r.year}," +
                         "${r.amountPaid}," +
-                        "${escapeCsv(r.status)}," +
-                        "${escapeCsv(r.paymentDate)}," +
-                        "${escapeCsv(r.remarks)}\n"
+                        "${r.monthlyFee}," +
+                        "${escapeCsv(r.status)}\n"
                     )
                 }
 

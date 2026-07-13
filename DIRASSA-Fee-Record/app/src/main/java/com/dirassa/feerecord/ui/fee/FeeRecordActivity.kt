@@ -304,16 +304,10 @@ class FeeRecordActivity : AppCompatActivity() {
         val record = editingRecord ?: return
         lifecycleScope.launch {
             try {
-                val file = PdfHelper.generateReceipt(
-                    this@FeeRecordActivity,
-                    student,
-                    record.amountPaid,
-                    record.month,
-                    record.year,
-                    record.paymentDate,
-                    record.remarks
+                val file = PdfHelper.createReceiptPdf(
+                    this@FeeRecordActivity, student, record
                 )
-                PdfHelper.sharePdf(this@FeeRecordActivity, file)
+                if (file != null) PdfHelper.sharePdf(this@FeeRecordActivity, file)
             } catch (e: Exception) {
                 Toast.makeText(this@FeeRecordActivity, "Error generating receipt", Toast.LENGTH_SHORT).show()
             }
